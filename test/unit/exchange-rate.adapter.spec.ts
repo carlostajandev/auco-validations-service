@@ -65,7 +65,7 @@ describe('ExchangeRateAdapter', () => {
       (_url: string, init: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {
           init.signal?.addEventListener('abort', () =>
-            reject(init.signal?.reason),
+            reject(init.signal?.reason as Error),
           );
         }),
     );
@@ -78,11 +78,12 @@ describe('ExchangeRateAdapter', () => {
   });
 
   it('rechaza una respuesta con forma inesperada', async () => {
-    const http = jest
-      .fn()
-      .mockResolvedValue(
-        jsonResponse(200, { result: 'error', 'error-type': 'unsupported-code' }),
-      );
+    const http = jest.fn().mockResolvedValue(
+      jsonResponse(200, {
+        result: 'error',
+        'error-type': 'unsupported-code',
+      }),
+    );
     const adapter = new ExchangeRateAdapter(options, http);
 
     await expect(adapter.fetchSnapshot()).rejects.toThrow(/unsupported-code/);
