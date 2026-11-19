@@ -282,6 +282,39 @@ Las unitarias simulan los puertos y las e2e usan adaptadores en memoria: corren 
 
 ---
 
+## Prueba de fuego (contra el servicio corriendo)
+
+Además de las pruebas automáticas, `scripts/fire-test.mjs` ataca el servicio levantado con Docker como si fuera producción:
+
+```bash
+docker compose up -d --build
+npm run test:fire     # contrato + carga + consistencia
+npm run test:chaos    # además tumba DynamoDB, MongoDB y la API externa en caliente
+```
+
+| Bloque | Qué verifica |
+|---|---|
+| Contrato | Los 4 endpoints, códigos de respuesta, formato de errores, `x-request-id`, inyección NoSQL, JSON roto, cuerpos gigantes (413) |
+| Carga | 100 POST y 1.000 GET con 20 usuarios simultáneos: latencias p50/p95/p99 y 0 errores 5xx |
+| Consistencia | Toda validación creada se puede leer y tiene su evento de auditoría; 25 POST simultáneos del mismo documento no se pisan |
+| Caos | DynamoDB reiniciándose, MongoDB caído y API externa colgada, con el servicio en marcha |
+
+Resultados en una máquina de desarrollo (37/37 verificaciones OK):
+
+| Escenario | Resultado |
+|---|---|
+| POST bajo carga | p95 ≈ 250-370 ms (incluye la llamada a la API externa), 0 errores |
+| GET bajo carga | p95 ≈ 55-80 ms, ~900 req/s, 100 % OK |
+| DynamoDB reiniciándose | 0 POST fallidos; ~26 de 40 eventos quedaron en el log `AUDIT_WRITE_FAILED` |
+| MongoDB caído | `503` en 5 s (no se cuelga), `/health` en 503, sin filtrar detalles internos; se recupera solo al volver |
+| API externa colgada | `201` con `enrichmentStatus=failed` en ~3,8 s (3 intentos de 1 s + backoff) |
+
+Lo que la prueba encontró y se corrigió:
+- Un cuerpo de 2 MB devolvía **500** en vez de **413**: el filtro global no reconocía los errores de `body-parser`. Ahora respeta los errores HTTP de Express y el cuerpo se limita a 10 KB.
+- Con MongoDB caído se respondía **500**; ahora el adaptador traduce los errores de conexión a un error de dominio y la API responde **503** (temporal, reintentable).
+
+Lo que la prueba deja medido: con DynamoDB caído, las validaciones no se pierden pero sus eventos de auditoría quedan solo en el log. Es la razón concreta para implementar el *transactional outbox* (primera mejora de la lista siguiente).
+
 ## Qué mejoraría con más tiempo
 
 - **Transactional outbox** para la auditoría: guardar el evento pendiente junto a la validación en Mongo y que un proceso lo publique a DynamoDB con reintentos; ningún evento se pierde.
