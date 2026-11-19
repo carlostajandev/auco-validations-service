@@ -11,6 +11,7 @@ import {
   DomainError,
   EnrichmentUnavailableError,
   InvalidQueryError,
+  PersistenceUnavailableError,
   ValidationNotFoundError,
 } from '../../validations/domain/errors';
 
@@ -68,11 +69,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { statusCode: exception.getStatus(), message };
     }
 
+    // Errores de librerías de Express (p. ej. body-parser: JSON roto, cuerpo
+    // demasiado grande) siguen la convención de "http-errors": traen status y
+    // expose=true cuando el mensaje es seguro de mostrar al cliente.
+    if (isExposableHttpError(exception)) {
+      return { statusCode: exception.status, message: exception.message };
+    }
+
     if (exception instanceof ValidationNotFoundError) {
       return { statusCode: HttpStatus.NOT_FOUND, message: exception.message };
     }
     if (exception instanceof InvalidQueryError) {
       return { statusCode: HttpStatus.BAD_REQUEST, message: exception.message };
+    }
+    if (exception instanceof PersistenceUnavailableError) {
+      return {
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        message: exception.message,
+      };
     }
     if (exception instanceof EnrichmentUnavailableError) {
       return { statusCode: HttpStatus.BAD_GATEWAY, message: exception.message };
@@ -89,4 +103,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message: 'Internal server error',
     };
   }
+}
+
+function isExposableHttpError(
+  error: unknown,
+): error is { status: number; message: string } {
+  if (typeof error !== 'object' || error === null) return false;
+  const { status, expose } = error as { status?: unknown; expose?: unknown };
+  return (
+    expose === true &&
+    typeof status === 'number' &&
+    status >= 400 &&
+    status < 500
+  );
 }
