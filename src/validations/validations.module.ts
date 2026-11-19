@@ -4,10 +4,12 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { CreateValidationUseCase } from './application/create-validation.usecase';
 import { GetValidationUseCase } from './application/get-validation.usecase';
+import { ListAuditEventsUseCase } from './application/list-audit-events.usecase';
 import { ValidationRepositoryPort } from './domain/ports/validation.repository.port';
 import { AuditPort } from './domain/ports/audit.port';
 import { EnrichmentPort } from './domain/ports/enrichment.port';
 import { ValidationsController } from './infrastructure/http/validations.controller';
+import { AuditHistoryController } from './infrastructure/http/audit-history.controller';
 import {
   ValidationDocument,
   ValidationSchema,
@@ -34,10 +36,11 @@ import {
       { name: ValidationDocument.name, schema: ValidationSchema },
     ]),
   ],
-  controllers: [ValidationsController],
+  controllers: [ValidationsController, AuditHistoryController],
   providers: [
     CreateValidationUseCase,
     GetValidationUseCase,
+    ListAuditEventsUseCase,
 
     // Puertos -> adaptadores
     { provide: ValidationRepositoryPort, useClass: ValidationMongoRepository },

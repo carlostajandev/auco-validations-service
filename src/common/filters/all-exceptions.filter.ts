@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import {
   DomainError,
   EnrichmentUnavailableError,
+  InvalidQueryError,
   ValidationNotFoundError,
 } from '../../validations/domain/errors';
 
@@ -69,6 +70,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof ValidationNotFoundError) {
       return { statusCode: HttpStatus.NOT_FOUND, message: exception.message };
+    }
+    if (exception instanceof InvalidQueryError) {
+      return { statusCode: HttpStatus.BAD_REQUEST, message: exception.message };
     }
     if (exception instanceof EnrichmentUnavailableError) {
       return { statusCode: HttpStatus.BAD_GATEWAY, message: exception.message };

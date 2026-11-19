@@ -25,7 +25,7 @@ describe('CreateValidationUseCase', () => {
 
   beforeEach(() => {
     repository = { save: jest.fn(), findById: jest.fn() };
-    audit = { record: jest.fn() };
+    audit = { record: jest.fn(), findByDocument: jest.fn() };
     enrichment = { fetchSnapshot: jest.fn() };
     useCase = new CreateValidationUseCase(repository, audit, enrichment);
   });

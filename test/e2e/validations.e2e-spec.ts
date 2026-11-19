@@ -4,11 +4,14 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import { configureApp } from '../../src/app.setup';
 import { ValidationsController } from '../../src/validations/infrastructure/http/validations.controller';
+import { AuditHistoryController } from '../../src/validations/infrastructure/http/audit-history.controller';
+import { ListAuditEventsUseCase } from '../../src/validations/application/list-audit-events.usecase';
 import { CreateValidationUseCase } from '../../src/validations/application/create-validation.usecase';
 import { GetValidationUseCase } from '../../src/validations/application/get-validation.usecase';
 import { ValidationRepositoryPort } from '../../src/validations/domain/ports/validation.repository.port';
 import {
   AuditEvent,
+  AuditHistoryQuery,
   AuditPort,
 } from '../../src/validations/domain/ports/audit.port';
 import { EnrichmentPort } from '../../src/validations/domain/ports/enrichment.port';
@@ -32,6 +35,17 @@ class InMemoryAudit extends AuditPort {
   record(event: AuditEvent) {
     this.events.push(event);
     return Promise.resolve();
+  }
+  findByDocument(query: AuditHistoryQuery) {
+    const items = this.events
+      .filter((e) => e.documentNumber === query.documentNumber)
+      .filter((e) => !query.from || e.occurredAt >= query.from)
+      .filter((e) => !query.to || e.occurredAt <= query.to)
+      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+    return Promise.resolve({
+      items: items.slice(0, query.limit),
+      nextCursor: null,
+    });
   }
 }
 
@@ -61,10 +75,11 @@ describe('Validations API (e2e)', () => {
     enrichment = new FakeEnrichment();
 
     const moduleRef = await Test.createTestingModule({
-      controllers: [ValidationsController],
+      controllers: [ValidationsController, AuditHistoryController],
       providers: [
         CreateValidationUseCase,
         GetValidationUseCase,
+        ListAuditEventsUseCase,
         {
           provide: ValidationRepositoryPort,
           useValue: new InMemoryRepository(),
@@ -156,5 +171,39 @@ describe('Validations API (e2e)', () => {
 
   it('GET con un id que no es UUID responde 400', async () => {
     await request(app.getHttpServer()).get('/validations/abc').expect(400);
+  });
+
+  describe('GET /documents/:documentNumber/audit-events', () => {
+    it('devuelve el historial del documento, normalizando el número', async () => {
+      await request(app.getHttpServer())
+        .post('/validations')
+        .send({ name: 'Marta Ruiz', documentNumber: '55667788' })
+        .expect(201);
+
+      const { body } = await request(app.getHttpServer())
+        .get('/documents/55.667.788/audit-events')
+        .expect(200);
+
+      expect(body.nextCursor).toBeNull();
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0]).toMatchObject({
+        eventType: 'VALIDATION_CREATED',
+        documentNumber: '55667788',
+        occurredAt: expect.any(String),
+      });
+    });
+
+    it.each([
+      ['una fecha inválida', '?from=ayer'],
+      ['un limit fuera de rango', '?limit=500'],
+      [
+        'un rango invertido',
+        '?from=2026-12-01T00:00:00Z&to=2026-11-01T00:00:00Z',
+      ],
+    ])('responde 400 con %s', async (_case, qs) => {
+      await request(app.getHttpServer())
+        .get(`/documents/55667788/audit-events${qs}`)
+        .expect(400);
+    });
   });
 });
