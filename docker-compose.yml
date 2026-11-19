@@ -1,0 +1,54 @@
+services:
+  app:
+    build: .
+    container_name: auco-app
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: info
+      MONGO_URI: mongodb://mongo:27017/auco
+      DYNAMO_ENDPOINT: http://dynamodb:8000
+      DYNAMO_REGION: us-east-1
+      DYNAMO_AUDIT_TABLE: validation_audit_events
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      ENRICHMENT_BASE_URL: https://open.er-api.com/v6
+      ENRICHMENT_BASE_CURRENCY: USD
+      ENRICHMENT_TIMEOUT_MS: 3000
+      ENRICHMENT_MAX_RETRIES: 2
+    depends_on:
+      mongo:
+        condition: service_healthy
+      dynamodb:
+        condition: service_started
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: auco-mongo
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dynamodb:
+    image: amazon/dynamodb-local:2.5.2
+    container_name: auco-dynamodb
+    command: ['-jar', 'DynamoDBLocal.jar', '-sharedDb', '-dbPath', '/home/dynamodblocal/data']
+    working_dir: /home/dynamodblocal
+    user: root
+    ports:
+      - '8000:8000'
+    volumes:
+      - dynamo-data:/home/dynamodblocal/data
+
+volumes:
+  mongo-data:
+  dynamo-data:
