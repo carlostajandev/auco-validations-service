@@ -1,0 +1,33 @@
+# Peticiones de ejemplo. Con la extensión "REST Client" de VS Code,
+# aparece "Send Request" encima de cada una.
+
+@baseUrl = http://localhost:3000
+
+### Crear una validación
+# @name create
+POST {{baseUrl}}/validations
+Content-Type: application/json
+
+{
+  "name": "Ana María Pérez",
+  "documentNumber": "1.020.304.050"
+}
+
+### Consultar la validación recién creada
+GET {{baseUrl}}/validations/{{create.response.body.id}}
+
+### Payload inválido -> 400
+POST {{baseUrl}}/validations
+Content-Type: application/json
+
+{
+  "name": "R2D2",
+  "documentNumber": "12",
+  "isAdmin": true
+}
+
+### Id inexistente -> 404
+GET {{baseUrl}}/validations/3f2b6c1e-8a4d-4f7e-9b2a-1c5d8e9f0a1b
+
+### Health check
+GET {{baseUrl}}/health
