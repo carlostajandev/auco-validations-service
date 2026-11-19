@@ -23,3 +23,10 @@ export class EnrichmentUnavailableError extends DomainError {
     super(`Enrichment provider unavailable: ${reason}`);
   }
 }
+
+/** Errores causados por parámetros del cliente que solo se detectan al combinarlos. */
+export class InvalidQueryError extends DomainError {
+  constructor(message: string) {
+    super(message);
+  }
+}
