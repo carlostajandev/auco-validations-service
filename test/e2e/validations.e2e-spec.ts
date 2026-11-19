@@ -1,7 +1,6 @@
-import { INestApplication } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { configureApp } from '../../src/app.setup';
 import { ValidationsController } from '../../src/validations/infrastructure/http/validations.controller';
 import { AuditHistoryController } from '../../src/validations/infrastructure/http/audit-history.controller';
@@ -66,7 +65,7 @@ class FakeEnrichment extends EnrichmentPort {
 }
 
 describe('Validations API (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let audit: InMemoryAudit;
   let enrichment: FakeEnrichment;
 
@@ -89,7 +88,7 @@ describe('Validations API (e2e)', () => {
       ],
     }).compile();
 
-    app = moduleRef.createNestApplication();
+    app = moduleRef.createNestApplication<NestExpressApplication>();
     configureApp(app);
     await app.init();
   });
@@ -160,6 +159,26 @@ describe('Validations API (e2e)', () => {
       path: '/validations',
     });
     expect(Array.isArray(body.message)).toBe(true);
+  });
+
+  it('POST con JSON mal formado responde 400, no 500', async () => {
+    await request(app.getHttpServer())
+      .post('/validations')
+      .set('content-type', 'application/json')
+      .send('{"name": "Ana",')
+      .expect(400);
+  });
+
+  it('POST con un cuerpo de más de 10 KB responde 413, no 500', async () => {
+    const { body } = await request(app.getHttpServer())
+      .post('/validations')
+      .send({
+        name: 'Ana',
+        documentNumber: '1020304050',
+        pad: 'x'.repeat(20_000),
+      })
+      .expect(413);
+    expect(body.statusCode).toBe(413);
   });
 
   it('GET de un id inexistente responde 404', async () => {

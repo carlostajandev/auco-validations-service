@@ -1,4 +1,5 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -6,7 +7,10 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
  * Configuración HTTP compartida entre main.ts y las pruebas e2e,
  * para que las pruebas ejerciten exactamente lo mismo que producción.
  */
-export function configureApp(app: INestApplication): void {
+export function configureApp(app: NestExpressApplication): void {
+  // El payload real son dos campos cortos: aceptar más solo abre la puerta a abusos.
+  app.useBodyParser('json', { limit: '10kb' });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // elimina campos que no están en el DTO
