@@ -72,6 +72,16 @@ describe('CreateValidationUseCase', () => {
     );
   });
 
+  it('si la auditoría falla, la validación ya guardada igual responde con su id', async () => {
+    enrichment.fetchSnapshot.mockResolvedValue(snapshot);
+    audit.record.mockRejectedValue(new Error('dynamo down'));
+
+    const result = await useCase.execute(command);
+
+    expect(repository.save).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe(repository.save.mock.calls[0][0].id);
+  });
+
   it('no audita si la persistencia falla (no hay eventos de algo que no existe)', async () => {
     enrichment.fetchSnapshot.mockResolvedValue(snapshot);
     repository.save.mockRejectedValue(new Error('mongo down'));
