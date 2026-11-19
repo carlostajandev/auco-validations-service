@@ -19,7 +19,9 @@
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:all": "npm test && npm run test:e2e && npm run test:integration",
-    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-integration.json --runInBand"
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-integration.json --runInBand",
+    "typecheck": "tsc --noEmit",
+    "lint:check": "eslint \"{src,test}/**/*.ts\""
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1172.0",
