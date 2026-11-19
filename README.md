@@ -1,5 +1,7 @@
 # AUCO Validations Service
 
+[![CI](https://github.com/carlostajandev/auco-validations-service/actions/workflows/ci.yml/badge.svg)](https://github.com/carlostajandev/auco-validations-service/actions/workflows/ci.yml)
+
 Servicio en **NestJS + TypeScript** que registra validaciones de identidad:
 
 1. Recibe nombre y número de documento.
@@ -7,6 +9,8 @@ Servicio en **NestJS + TypeScript** que registra validaciones de identidad:
 3. Lo guarda en **MongoDB**.
 4. Escribe un evento de auditoría en **DynamoDB Local** (llave: documento + fecha).
 5. Responde con el `id` de la validación.
+
+Además expone el historial de auditoría de cada documento, con filtro por fechas y paginación.
 
 ---
 
@@ -97,7 +101,39 @@ curl -s http://localhost:3000/validations/<id>
 - `404` si no existe.
 - `400` si el id no es un UUID.
 
-### Ver los eventos de auditoría en DynamoDB Local
+### `GET /documents/:documentNumber/audit-events`
+
+Historial de auditoría de un documento, del más reciente al más antiguo.
+
+| Query | Descripción |
+|---|---|
+| `from`, `to` | Rango de fechas ISO 8601, inclusivo (opcionales) |
+| `limit` | 1 a 100, por defecto 20 |
+| `cursor` | `nextCursor` de la página anterior |
+
+```bash
+curl -s 'http://localhost:3000/documents/1020304050/audit-events?from=2026-11-01T00:00:00Z&limit=2'
+```
+
+```json
+{
+  "items": [
+    {
+      "eventType": "VALIDATION_CREATED",
+      "validationId": "6f1c2b8e-3a4d-4e5f-9a6b-7c8d9e0f1a2b",
+      "documentNumber": "1020304050",
+      "name": "Ana María Pérez",
+      "enrichmentStatus": "completed",
+      "occurredAt": "2026-11-19T15:04:05.123Z"
+    }
+  ],
+  "nextCursor": "eyJkb2N1bWVudE51bWJlciI6..."
+}
+```
+
+El rango se resuelve con `BETWEEN` sobre la sort key (sin `Scan` ni filtros en memoria). El cursor es opaco y se rechaza si pertenece a otro documento.
+
+### Ver los eventos directamente en DynamoDB Local
 
 ```bash
 docker run --rm --network auco-validations-service_default \
@@ -155,7 +191,7 @@ src/
     domain/            entidad, errores de dominio y puertos (sin dependencias externas)
     application/       casos de uso
     infrastructure/
-      http/            controlador + DTOs (entrada/salida)
+      http/            controladores + DTOs (entrada/salida)
       persistence/     adaptador MongoDB
       audit/           adaptador DynamoDB
       enrichment/      adaptador de la API externa
@@ -164,6 +200,8 @@ src/
 test/
   unit/                casos de uso, reintentos y adaptador HTTP (puertos simulados)
   e2e/                 API completa vía HTTP con adaptadores en memoria
+  integration/         adaptadores contra MongoDB y DynamoDB reales (Testcontainers)
+.github/workflows/     CI: lint, tipos, pruebas y build de la imagen
 ```
 
 Flujo de `POST /validations`: **validar entrada → enriquecer → persistir → auditar → devolver id**.
@@ -194,6 +232,7 @@ Así el mismo id se usa en MongoDB y en el evento de auditoría, y el dominio no
 - **SK = fecha ISO 8601 en UTC**: ese formato se ordena alfabéticamente igual que en el tiempo, así que los eventos salen en orden cronológico y se pueden pedir rangos con `BETWEEN` o `begins_with` (p. ej. todo noviembre: `begins_with(eventAt, "2026-11")`), con paginación temporal.
 - **Sufijo `#validationId`**: dos validaciones del mismo documento en el mismo milisegundo tendrían la misma llave y una sobrescribiría a la otra. El sufijo garantiza unicidad sin perder el orden.
 - **Escritura condicional** (`attribute_not_exists`): un evento de auditoría nunca se sobrescribe.
+- **El endpoint de historial aprovecha el diseño**: un `Query` por partición con `BETWEEN` sobre la sort key, orden descendente y paginación con `LastEvaluatedKey`. Las pruebas de integración lo verifican contra DynamoDB Local real.
 
 ### ¿Y si Mongo guarda pero DynamoDB falla?
 Devolver 500 haría que el cliente reintente y cree una **validación duplicada**. Se responde 201 y el evento completo queda en un log de nivel `error` (`AUDIT_WRITE_FAILED`) para reprocesarlo. Si Mongo falla, no se audita nada (no hay eventos de algo que no existe). La solución definitiva es el patrón *transactional outbox* (ver "Qué mejoraría").
@@ -213,10 +252,21 @@ Nada de colas, microservicios ni CQRS: es un solo servicio con dos endpoints. He
 
 ```bash
 npm install
-npm test            # unitarias
-npm run test:e2e    # API completa vía HTTP
-npm run test:cov    # cobertura
+npm test                  # unitarias
+npm run test:e2e          # API completa vía HTTP
+npm run test:integration  # contra MongoDB y DynamoDB reales (requiere Docker)
+npm run test:all          # las tres
 ```
+
+| Capa | Qué prueba | Dependencias |
+|---|---|---|
+| Unitarias | Casos de uso, reintentos, adaptador HTTP | Ninguna (puertos simulados) |
+| E2E | Contrato HTTP: validación, códigos, formato de errores | Ninguna (adaptadores en memoria) |
+| Integración | Consultas reales: orden, rangos, cursor, escritura condicional, `_id` UUID | Docker (Testcontainers levanta contenedores efímeros) |
+
+> Nota: el driver de MongoDB 7 carga un módulo con `import()` dinámico, que Jest solo soporta con `--experimental-vm-modules`. Por eso el script de integración activa esa opción; sin ella la conexión falla con *"Missing required sub-document 'driver'"*.
+
+La CI (GitHub Actions) corre lint, tipos, las tres capas de pruebas y el build de la imagen en cada push y pull request.
 
 Las pruebas verifican **comportamiento**, incluidas las rutas de error:
 
@@ -224,6 +274,7 @@ Las pruebas verifican **comportamiento**, incluidas las rutas de error:
 - Se escribe el evento de auditoría al crear; si Mongo falla, no se audita.
 - Si la auditoría falla, la validación igual responde con su id.
 - Reintenta un 503, **no** reintenta un 404, corta por timeout, rechaza respuestas mal formadas.
+- Historial: orden cronológico inverso, rango inclusivo, paginación sin repetir ni saltarse eventos, dos eventos en el mismo milisegundo no se pisan, cursor ajeno rechazado.
 - Backoff exponencial correcto.
 - `POST` inválido → 400 con mensaje claro; campos extra → 400; `GET` inexistente → 404; id no UUID → 400.
 
@@ -235,11 +286,9 @@ Las unitarias simulan los puertos y las e2e usan adaptadores en memoria: corren 
 
 - **Transactional outbox** para la auditoría: guardar el evento pendiente junto a la validación en Mongo y que un proceso lo publique a DynamoDB con reintentos; ningún evento se pierde.
 - **Idempotencia** en `POST` (`Idempotency-Key`) para que un reintento del cliente no duplique validaciones.
-- **Pruebas de integración con Testcontainers** contra Mongo y DynamoDB reales.
-- **Endpoint de historial** `GET /validations/history/:documentNumber` paginado sobre la tabla de auditoría.
 - **Reprocesar** las validaciones con `enrichmentStatus=failed`.
 - **Caché** del enriquecimiento (la tasa cambia una vez al día) y *circuit breaker* hacia el proveedor.
-- **CI** con GitHub Actions (lint + pruebas + build de la imagen).
+- **CD**: publicar la imagen en un registro y desplegar desde la CI.
 - **Autenticación** (JWT/OAuth2), *rate limiting* y cifrado o enmascarado del número de documento.
 - **Observabilidad**: OpenTelemetry (trazas) y métricas Prometheus.
 - **Terraform** para la tabla real de DynamoDB (con TTL y point-in-time recovery).

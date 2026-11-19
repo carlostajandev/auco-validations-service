@@ -31,3 +31,9 @@ GET {{baseUrl}}/validations/3f2b6c1e-8a4d-4f7e-9b2a-1c5d8e9f0a1b
 
 ### Health check
 GET {{baseUrl}}/health
+
+### Historial de auditoría de un documento (más reciente primero)
+GET {{baseUrl}}/documents/1020304050/audit-events?limit=5
+
+### Historial filtrado por rango de fechas
+GET {{baseUrl}}/documents/1020304050/audit-events?from=2026-11-01T00:00:00Z&to=2026-11-30T23:59:59Z
