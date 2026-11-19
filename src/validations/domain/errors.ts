@@ -30,3 +30,10 @@ export class InvalidQueryError extends DomainError {
     super(message);
   }
 }
+
+/** La base de datos no está disponible: es temporal, el cliente puede reintentar. */
+export class PersistenceUnavailableError extends DomainError {
+  constructor(readonly cause?: unknown) {
+    super('Storage temporarily unavailable, please retry');
+  }
+}
