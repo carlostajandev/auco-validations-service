@@ -3,27 +3,35 @@ services:
     build: .
     container_name: auco-app
     ports:
-      - '3000:3000'
+      - '${PORT:-3000}:3000'
+    # ${VAR:-valor} = usa la variable del entorno o del archivo .env si existe;
+    # si no, el valor por defecto. Así funciona sin configurar nada.
     environment:
       NODE_ENV: production
       PORT: 3000
-      LOG_LEVEL: info
+      LOG_LEVEL: ${LOG_LEVEL:-info}
       MONGO_URI: mongodb://mongo:27017/auco
       DYNAMO_ENDPOINT: http://dynamodb:8000
       DYNAMO_REGION: us-east-1
-      DYNAMO_AUDIT_TABLE: validation_audit_events
+      DYNAMO_AUDIT_TABLE: ${DYNAMO_AUDIT_TABLE:-validation_audit_events}
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
-      ENRICHMENT_BASE_URL: https://open.er-api.com/v6
-      ENRICHMENT_BASE_CURRENCY: USD
-      ENRICHMENT_TARGET_CURRENCIES: COP,EUR,MXN,BRL,CLP
-      ENRICHMENT_TIMEOUT_MS: 3000
-      ENRICHMENT_MAX_RETRIES: 2
+      ENRICHMENT_BASE_URL: ${ENRICHMENT_BASE_URL:-https://open.er-api.com/v6}
+      ENRICHMENT_BASE_CURRENCY: ${ENRICHMENT_BASE_CURRENCY:-USD}
+      ENRICHMENT_TARGET_CURRENCIES: ${ENRICHMENT_TARGET_CURRENCIES:-COP,EUR,MXN,BRL,CLP}
+      ENRICHMENT_TIMEOUT_MS: ${ENRICHMENT_TIMEOUT_MS:-3000}
+      ENRICHMENT_MAX_RETRIES: ${ENRICHMENT_MAX_RETRIES:-2}
     depends_on:
       mongo:
         condition: service_healthy
       dynamodb:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/health']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   mongo:
@@ -49,6 +57,13 @@ services:
       - '8000:8000'
     volumes:
       - dynamo-data:/home/dynamodblocal/data
+    # Java tarda unos segundos en abrir el puerto. DynamoDB responde 400 a un
+    # GET simple: cualquier respuesta HTTP significa que ya está escuchando.
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -s -o /dev/null http://localhost:8000 || exit 1']
+      interval: 3s
+      timeout: 3s
+      retries: 20
 
 volumes:
   mongo-data:
