@@ -27,4 +27,9 @@ export const envValidationSchema = Joi.object({
   ENRICHMENT_TARGET_CURRENCIES: Joi.string().default('COP,EUR,MXN,BRL,CLP'),
   ENRICHMENT_TIMEOUT_MS: Joi.number().integer().min(100).default(3000),
   ENRICHMENT_MAX_RETRIES: Joi.number().integer().min(0).max(5).default(2),
+  ENRICHMENT_CACHE_TTL_MS: Joi.number().integer().min(0).default(600_000),
+  ENRICHMENT_CACHE_MAX_STALE_MS: Joi.number()
+    .integer()
+    .min(0)
+    .default(86_400_000),
 });

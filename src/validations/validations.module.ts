@@ -25,6 +25,7 @@ import {
   ExchangeRateAdapter,
   ExchangeRateOptions,
 } from './infrastructure/enrichment/exchange-rate.adapter';
+import { CachedEnrichmentAdapter } from './infrastructure/enrichment/cached-enrichment.adapter';
 
 /**
  * Composition root del módulo: el ÚNICO lugar que sabe qué adaptador
@@ -45,7 +46,19 @@ import {
     // Puertos -> adaptadores
     { provide: ValidationRepositoryPort, useClass: ValidationMongoRepository },
     { provide: AuditPort, useClass: AuditDynamoAdapter },
-    { provide: EnrichmentPort, useClass: ExchangeRateAdapter },
+    ExchangeRateAdapter,
+    {
+      // La tasa cambia una vez al día: se cachea delante del adaptador HTTP.
+      provide: EnrichmentPort,
+      inject: [ExchangeRateAdapter, ConfigService],
+      useFactory: (http: ExchangeRateAdapter, config: ConfigService) =>
+        new CachedEnrichmentAdapter(http, {
+          ttlMs: config.getOrThrow<number>('ENRICHMENT_CACHE_TTL_MS'),
+          maxStaleMs: config.getOrThrow<number>(
+            'ENRICHMENT_CACHE_MAX_STALE_MS',
+          ),
+        }),
+    },
 
     // Configuración de los adaptadores
     {
