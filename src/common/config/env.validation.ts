@@ -1,10 +1,6 @@
 import * as Joi from 'joi';
 
-/**
- * Valida las variables de entorno al arrancar.
- * Si falta algo o tiene un formato inválido, la app no arranca
- * ("fail fast") en vez de fallar más tarde en medio de un request.
- */
+// Si falta una variable o viene mal, mejor que no arranque.
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')

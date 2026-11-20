@@ -1,4 +1,4 @@
-# Entorno de estrés: la app con límites de un pod típico y un proveedor falso.
+# App con límites de un pod (1 CPU / 512 MB) y proveedor de tasas falso.
 #   docker compose -f docker-compose.yml -f docker-compose.stress.yml up -d --build --wait
 services:
   fake-rates:

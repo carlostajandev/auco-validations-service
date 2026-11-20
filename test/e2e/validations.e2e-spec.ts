@@ -17,7 +17,6 @@ import { EnrichmentPort } from '../../src/validations/domain/ports/enrichment.po
 import { Validation } from '../../src/validations/domain/validation.entity';
 import { EnrichmentUnavailableError } from '../../src/validations/domain/errors';
 
-/** Adaptadores falsos en memoria: rápidos y deterministas, sin Docker. */
 class InMemoryRepository extends ValidationRepositoryPort {
   readonly items = new Map<string, Validation>();
   save(v: Validation) {

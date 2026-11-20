@@ -5,13 +5,10 @@ import {
   ExchangeRateSnapshot,
 } from '../../../domain/validation.entity';
 
-/**
- * Tipos declarados explícitamente en cada @Prop: no depender de la metadata
- * que emite el compilador, que cambia según la herramienta (tsc, ts-jest, swc).
- */
+// Tipos explícitos en cada @Prop: con ts-jest la metadata del enum no llega y Mongoose revienta.
 @Schema({ collection: 'validations', versionKey: false })
 export class ValidationDocument {
-  /** UUID generado por el dominio (no el ObjectId de Mongo). */
+  // uuid del dominio, no ObjectId
   @Prop({ type: String, required: true })
   _id!: string;
 

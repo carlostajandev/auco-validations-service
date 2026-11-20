@@ -1,7 +1,4 @@
-/**
- * Errores de dominio: expresan reglas del negocio, no códigos HTTP.
- * El filtro global de excepciones es quien los traduce a 404, 502, etc.
- */
+// Sin códigos HTTP aquí; el filtro global los traduce.
 export abstract class DomainError extends Error {
   protected constructor(message: string) {
     super(message);
@@ -24,14 +21,12 @@ export class EnrichmentUnavailableError extends DomainError {
   }
 }
 
-/** Errores causados por parámetros del cliente que solo se detectan al combinarlos. */
 export class InvalidQueryError extends DomainError {
   constructor(message: string) {
     super(message);
   }
 }
 
-/** La base de datos no está disponible: es temporal, el cliente puede reintentar. */
 export class PersistenceUnavailableError extends DomainError {
   constructor(readonly cause?: unknown) {
     super('Storage temporarily unavailable, please retry');

@@ -3,21 +3,14 @@ import { EnrichmentPort } from '../../domain/ports/enrichment.port';
 import { ExchangeRateSnapshot } from '../../domain/validation.entity';
 
 export interface CachedEnrichmentOptions {
-  /** Cuánto se considera fresca una tasa. */
   ttlMs: number;
-  /** Hasta cuándo se acepta una tasa vieja si el proveedor está caído. */
-  maxStaleMs: number;
+  maxStaleMs: number; // cuánto aguanta una tasa vieja si el proveedor está caído
   now?: () => number;
 }
 
-/**
- * Decorador del puerto: el proveedor publica la tasa una vez al día, así que
- * no tiene sentido llamarlo en cada POST (latencia extra y riesgo de 429).
- *
- * - Una sola llamada en vuelo aunque lleguen muchas peticiones a la vez.
- * - Si el proveedor falla, se sigue usando la última tasa buena hasta maxStaleMs.
- *   El snapshot conserva su fetchedAt original, así que no se maquilla la fecha.
- */
+// La tasa se publica una vez al día; llamar al proveedor en cada POST solo suma
+// latencia y nos expone a un 429. Una sola consulta en vuelo aunque lleguen muchas
+// peticiones, y si el proveedor cae se usa la última buena (con su fetchedAt real).
 export class CachedEnrichmentAdapter extends EnrichmentPort {
   private readonly logger = new Logger(CachedEnrichmentAdapter.name);
   private cached: { value: ExchangeRateSnapshot; at: number } | null = null;

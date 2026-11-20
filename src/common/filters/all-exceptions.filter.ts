@@ -23,11 +23,7 @@ export interface ErrorBody {
   timestamp: string;
 }
 
-/**
- * Un solo lugar que decide cómo se ven TODOS los errores de la API.
- * Traduce errores de dominio a HTTP y nunca filtra detalles internos
- * (stack traces, mensajes de Mongo, etc.) en errores 500.
- */
+// Mapea errores de dominio a HTTP. Los 500 no exponen detalles, eso queda en el log.
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -69,9 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { statusCode: exception.getStatus(), message };
     }
 
-    // Errores de librerías de Express (p. ej. body-parser: JSON roto, cuerpo
-    // demasiado grande) siguen la convención de "http-errors": traen status y
-    // expose=true cuando el mensaje es seguro de mostrar al cliente.
+    // body-parser (JSON roto, 413) lanza errores con status y expose=true
     if (isExposableHttpError(exception)) {
       return { statusCode: exception.status, message: exception.message };
     }

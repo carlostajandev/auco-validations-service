@@ -15,7 +15,6 @@ import { ValidationsModule } from './validations/validations.module';
       validationOptions: { abortEarly: false },
     }),
 
-    // Logs estructurados en JSON, con un id por request para poder seguirlo.
     LoggerModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -31,7 +30,7 @@ import { ValidationsModule } from './validations/validations.module';
             config.get('NODE_ENV') === 'development'
               ? { target: 'pino-pretty', options: { singleLine: true } }
               : undefined,
-          // Datos personales fuera de los logs de requests
+          // el body trae datos personales, no va al log
           redact: ['req.headers.authorization', 'req.body'],
         },
       }),

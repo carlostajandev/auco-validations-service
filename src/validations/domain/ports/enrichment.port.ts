@@ -1,6 +1,6 @@
 import { ExchangeRateSnapshot } from '../validation.entity';
 
 export abstract class EnrichmentPort {
-  /** Lanza EnrichmentUnavailableError si el proveedor no responde bien. */
+  // lanza EnrichmentUnavailableError si el proveedor falla
   abstract fetchSnapshot(): Promise<ExchangeRateSnapshot>;
 }

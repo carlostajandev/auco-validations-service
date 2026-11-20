@@ -1,5 +1,4 @@
-// Imita a open.er-api.com para las pruebas de estrés: no abusamos de una API
-// gratuita y medimos nuestro servicio, no la red ni al proveedor.
+// Proveedor falso para el estrés: no le pego miles de veces a una API gratis.
 import { createServer } from 'node:http';
 
 const LATENCY_MS = Number(process.env.FAKE_LATENCY_MS ?? 80);
