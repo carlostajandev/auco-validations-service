@@ -1,23 +1,15 @@
 export interface RetryOptions {
-  /** Reintentos adicionales al primer intento (2 = hasta 3 intentos en total). */
-  retries: number;
-  /** Espera base en ms; se duplica en cada reintento (backoff exponencial). */
+  retries: number; // 2 = hasta 3 intentos
   baseDelayMs: number;
-  /** Decide si el error vale la pena reintentarlo (p. ej. un 400 no). */
   shouldRetry?: (error: unknown) => boolean;
-  /** Inyectable para que las pruebas no tengan que esperar de verdad. */
-  sleep?: (ms: number) => Promise<void>;
+  sleep?: (ms: number) => Promise<void>; // para no esperar en los tests
   onRetry?: (error: unknown, attempt: number, delayMs: number) => void;
 }
 
 const defaultSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/**
- * Ejecuta `fn` con reintentos y backoff exponencial con "jitter"
- * (un poco de azar en la espera para que muchos clientes no reintenten
- * todos al mismo tiempo y saturen al proveedor que ya está fallando).
- */
+// Backoff exponencial + jitter, para no reintentar todos a la vez contra un proveedor que ya está mal.
 export async function withRetry<T>(
   fn: (attempt: number) => Promise<T>,
   options: RetryOptions,

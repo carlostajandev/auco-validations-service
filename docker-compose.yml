@@ -4,8 +4,6 @@ services:
     container_name: auco-app
     ports:
       - '${PORT:-3000}:3000'
-    # ${VAR:-valor} = usa la variable del entorno o del archivo .env si existe;
-    # si no, el valor por defecto. Así funciona sin configurar nada.
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -21,6 +19,8 @@ services:
       ENRICHMENT_TARGET_CURRENCIES: ${ENRICHMENT_TARGET_CURRENCIES:-COP,EUR,MXN,BRL,CLP}
       ENRICHMENT_TIMEOUT_MS: ${ENRICHMENT_TIMEOUT_MS:-3000}
       ENRICHMENT_MAX_RETRIES: ${ENRICHMENT_MAX_RETRIES:-2}
+      ENRICHMENT_CACHE_TTL_MS: ${ENRICHMENT_CACHE_TTL_MS:-600000}
+      ENRICHMENT_CACHE_MAX_STALE_MS: ${ENRICHMENT_CACHE_MAX_STALE_MS:-86400000}
     depends_on:
       mongo:
         condition: service_healthy
@@ -57,8 +57,7 @@ services:
       - '8000:8000'
     volumes:
       - dynamo-data:/home/dynamodblocal/data
-    # Java tarda unos segundos en abrir el puerto. DynamoDB responde 400 a un
-    # GET simple: cualquier respuesta HTTP significa que ya está escuchando.
+    # responde 400 a un GET pelado, pero si responde es que ya está arriba
     healthcheck:
       test: ['CMD-SHELL', 'curl -s -o /dev/null http://localhost:8000 || exit 1']
       interval: 3s

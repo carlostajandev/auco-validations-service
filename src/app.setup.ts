@@ -3,19 +3,16 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
-/**
- * Configuración HTTP compartida entre main.ts y las pruebas e2e,
- * para que las pruebas ejerciten exactamente lo mismo que producción.
- */
+// Lo comparten main.ts y los e2e, así las pruebas corren con la misma config.
 export function configureApp(app: NestExpressApplication): void {
-  // El payload real son dos campos cortos: aceptar más solo abre la puerta a abusos.
+  // solo llegan dos campos, 10kb sobra
   app.useBodyParser('json', { limit: '10kb' });
 
   app.useGlobalPipes(
     new ValidationPipe({
-      whitelist: true, // elimina campos que no están en el DTO
-      forbidNonWhitelisted: true, // ...y rechaza el request si los mandan
-      transform: true, // aplica los @Transform (trim, normalizar documento)
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());

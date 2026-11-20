@@ -5,7 +5,7 @@ import { EnrichmentUnavailableError } from '../../domain/errors';
 import { withRetry } from '../../../common/resilience/retry';
 
 export const EXCHANGE_RATE_OPTIONS = Symbol('EXCHANGE_RATE_OPTIONS');
-/** Permite cambiar el cliente HTTP en pruebas sin tocar la red real. */
+// para inyectar un fetch falso en los tests
 export const HTTP_FETCH = Symbol('HTTP_FETCH');
 
 export interface ExchangeRateOptions {
@@ -17,7 +17,7 @@ export interface ExchangeRateOptions {
   retryBaseDelayMs?: number;
 }
 
-/** Error que sí vale la pena reintentar: red caída, timeout, 5xx o 429. */
+// red, timeout, 5xx o 429: vale la pena reintentar
 class TransientError extends Error {}
 
 interface OpenErApiResponse {
@@ -28,11 +28,7 @@ interface OpenErApiResponse {
   'error-type'?: string;
 }
 
-/**
- * Adaptador hacia open.er-api.com (gratis y sin API key).
- * Guarda una "foto" de la tasa de cambio en el momento de la validación:
- * contexto útil para auditoría ("¿cuál era el contexto cuando se validó?").
- */
+// open.er-api.com: gratis y sin API key.
 @Injectable()
 export class ExchangeRateAdapter extends EnrichmentPort {
   private readonly logger = new Logger(ExchangeRateAdapter.name);
@@ -93,7 +89,6 @@ export class ExchangeRateAdapter extends EnrichmentPort {
     return this.toSnapshot(body);
   }
 
-  /** Nunca confiar ciegamente en una API externa: validar la forma de la respuesta. */
   private toSnapshot(body: OpenErApiResponse): ExchangeRateSnapshot {
     if (body.result !== 'success' || !body.rates || !body.base_code) {
       throw new Error(

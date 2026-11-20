@@ -23,7 +23,8 @@
     "typecheck": "tsc --noEmit",
     "lint:check": "eslint \"{src,test}/**/*.ts\"",
     "test:fire": "node scripts/fire-test.mjs",
-    "test:chaos": "node scripts/fire-test.mjs --chaos"
+    "test:chaos": "node scripts/fire-test.mjs --chaos",
+    "test:stress": "node scripts/stress-test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.1172.0",

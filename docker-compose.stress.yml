@@ -1,0 +1,20 @@
+# App con límites de un pod (1 CPU / 512 MB) y proveedor de tasas falso.
+#   docker compose -f docker-compose.yml -f docker-compose.stress.yml up -d --build --wait
+services:
+  fake-rates:
+    image: auco-validations-service-app
+    command: ['node', '/stub/fake-rates-server.mjs']
+    volumes:
+      - ./scripts:/stub:ro
+
+  app:
+    environment:
+      ENRICHMENT_BASE_URL: http://fake-rates:8080/v6
+    depends_on:
+      fake-rates:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          cpus: ${APP_CPUS:-1}
+          memory: 512M

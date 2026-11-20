@@ -1,10 +1,6 @@
 import * as Joi from 'joi';
 
-/**
- * Valida las variables de entorno al arrancar.
- * Si falta algo o tiene un formato inválido, la app no arranca
- * ("fail fast") en vez de fallar más tarde en medio de un request.
- */
+// Si falta una variable o viene mal, mejor que no arranque.
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid('development', 'production', 'test')
@@ -27,4 +23,9 @@ export const envValidationSchema = Joi.object({
   ENRICHMENT_TARGET_CURRENCIES: Joi.string().default('COP,EUR,MXN,BRL,CLP'),
   ENRICHMENT_TIMEOUT_MS: Joi.number().integer().min(100).default(3000),
   ENRICHMENT_MAX_RETRIES: Joi.number().integer().min(0).max(5).default(2),
+  ENRICHMENT_CACHE_TTL_MS: Joi.number().integer().min(0).default(600_000),
+  ENRICHMENT_CACHE_MAX_STALE_MS: Joi.number()
+    .integer()
+    .min(0)
+    .default(86_400_000),
 });

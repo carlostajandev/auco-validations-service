@@ -23,7 +23,6 @@ import {
   ValidationResponse,
 } from './dto/validation.response';
 
-/** Adaptador de entrada: traduce HTTP <-> casos de uso. Sin lógica de negocio. */
 @ApiTags('validations')
 @Controller('validations')
 export class ValidationsController {

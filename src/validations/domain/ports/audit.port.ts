@@ -12,18 +12,16 @@ export interface AuditHistoryQuery {
   from?: Date;
   to?: Date;
   limit: number;
-  /** Cursor opaco devuelto por la página anterior. */
   cursor?: string;
 }
 
 export interface AuditHistoryPage {
   items: AuditEvent[];
-  /** null cuando no hay más páginas. */
-  nextCursor: string | null;
+  nextCursor: string | null; // null = no hay más
 }
 
 export abstract class AuditPort {
   abstract record(event: AuditEvent): Promise<void>;
-  /** Historial de un documento, del más reciente al más antiguo. */
+  // más reciente primero
   abstract findByDocument(query: AuditHistoryQuery): Promise<AuditHistoryPage>;
 }

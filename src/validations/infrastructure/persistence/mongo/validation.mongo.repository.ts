@@ -21,7 +21,6 @@ export class ValidationMongoRepository extends ValidationRepositoryPort {
   }
 
   async findById(id: string): Promise<Validation | null> {
-    // lean(): devuelve un objeto plano (más rápido, sin la "magia" de Mongoose)
     const doc = await this.translateErrors(() =>
       this.model.findById(id).lean().exec(),
     );
@@ -37,10 +36,7 @@ export class ValidationMongoRepository extends ValidationRepositoryPort {
     });
   }
 
-  /**
-   * Los errores de conexión de Mongo se traducen a un error de dominio:
-   * el resto de la app (y el filtro HTTP) no necesita saber que existe Mongo.
-   */
+  // Caída de Mongo -> error de dominio (503). El resto de la app no sabe de Mongo.
   private async translateErrors<T>(operation: () => Promise<T>): Promise<T> {
     try {
       return await operation();

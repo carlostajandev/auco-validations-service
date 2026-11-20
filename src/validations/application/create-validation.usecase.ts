@@ -9,11 +9,6 @@ export interface CreateValidationCommand {
   documentNumber: string;
 }
 
-/**
- * Orquesta: enriquecer -> persistir -> auditar -> devolver id.
- * Solo conoce puertos (abstracciones); las implementaciones reales
- * (Mongo, DynamoDB, HTTP) se inyectan desde el módulo.
- */
 @Injectable()
 export class CreateValidationUseCase {
   private readonly logger = new Logger(CreateValidationUseCase.name);
@@ -47,12 +42,9 @@ export class CreateValidationUseCase {
     return { id: validation.id };
   }
 
-  /**
-   * Trade-off: si la validación ya quedó en Mongo y DynamoDB falla, devolver
-   * un 500 haría que el cliente reintente y cree un duplicado. Se responde 201
-   * y se deja el evento completo en un log de nivel error para reprocesarlo.
-   * La solución definitiva es el patrón "transactional outbox" (ver README).
-   */
+  // Si Mongo ya guardó y Dynamo falla, un 500 haría que el cliente reintente y
+  // duplique la validación. Respondo 201 y dejo el evento completo en el log para
+  // reprocesarlo. Lo correcto a futuro es un outbox (ver README).
   private async tryAudit(event: AuditEvent): Promise<void> {
     try {
       await this.audit.record(event);
@@ -63,12 +55,8 @@ export class CreateValidationUseCase {
     }
   }
 
-  /**
-   * Decisión de resiliencia: el enriquecimiento es un dato de contexto,
-   * no una condición para validar. Si el proveedor falla (ya con reintentos),
-   * la validación se guarda igual con enrichmentStatus = "failed"
-   * en lugar de perderla devolviendo un 502.
-   */
+  // El enriquecimiento es contexto, no requisito: si el proveedor falla (ya con
+  // reintentos) se guarda igual con enrichmentStatus=failed en vez de dar 502.
   private async tryEnrich(): Promise<ExchangeRateSnapshot | null> {
     try {
       return await this.enrichment.fetchSnapshot();

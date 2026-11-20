@@ -60,7 +60,7 @@ describe('ExchangeRateAdapter', () => {
   });
 
   it('corta por timeout y lo reporta como EnrichmentUnavailableError', async () => {
-    // Simula un proveedor que nunca responde: solo termina cuando se aborta.
+    // proveedor que nunca responde
     const http = jest.fn(
       (_url: string, init: RequestInit) =>
         new Promise<Response>((_resolve, reject) => {

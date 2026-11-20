@@ -3,7 +3,6 @@ import { InjectConnection } from '@nestjs/mongoose';
 import { ApiTags } from '@nestjs/swagger';
 import { Connection, ConnectionStates } from 'mongoose';
 
-/** Para que Docker / un balanceador sepan si el servicio está sano. */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

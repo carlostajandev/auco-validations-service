@@ -5,10 +5,6 @@ import { AuditDynamoAdapter } from '../../src/validations/infrastructure/audit/d
 import { AuditEvent } from '../../src/validations/domain/ports/audit.port';
 import { InvalidQueryError } from '../../src/validations/domain/errors';
 
-/**
- * Contra un DynamoDB Local real (en un contenedor efímero): aquí se comprueba
- * lo que un mock no puede, como el orden por sort key, los rangos y el cursor.
- */
 describe('AuditDynamoAdapter (integration)', () => {
   let container: StartedTestContainer;
   let adapter: AuditDynamoAdapter;

@@ -5,7 +5,6 @@ export enum EnrichmentStatus {
   FAILED = 'failed',
 }
 
-/** Foto de la tasa de cambio en el momento exacto de la validación. */
 export interface ExchangeRateSnapshot {
   provider: string;
   baseCurrency: string;
@@ -23,11 +22,7 @@ export interface ValidationProps {
   createdAt: Date;
 }
 
-/**
- * Entidad de dominio. No sabe nada de MongoDB, DynamoDB ni HTTP.
- * El id se genera aquí (UUID) y no en la base de datos: así el mismo id
- * sirve para Mongo y para la auditoría, y el dominio no depende de Mongo.
- */
+// El id se genera aquí y no en Mongo: es el mismo que va al evento de auditoría.
 export class Validation {
   private constructor(private readonly props: ValidationProps) {}
 
@@ -49,7 +44,6 @@ export class Validation {
     });
   }
 
-  /** Reconstruye una entidad que ya existía (por ejemplo, leída de la base). */
   static restore(props: ValidationProps): Validation {
     return new Validation({ ...props });
   }

@@ -24,10 +24,7 @@ import { withRetry } from '../../../../common/resilience/retry';
 export const DYNAMO_CLIENT = Symbol('DYNAMO_CLIENT');
 export const AUDIT_TABLE_NAME = Symbol('AUDIT_TABLE_NAME');
 
-/**
- * '~' es mayor que cualquier carácter de un UUID (0-9, a-f, '-'), así que
- * "<ISO>#~" es el límite superior inclusivo de todos los eventos de ese instante.
- */
+// '~' ordena después de cualquier carácter de un uuid: "<ISO>#~" incluye todo ese instante.
 const UPPER_SUFFIX = '#~';
 
 interface AuditItem {
@@ -40,15 +37,9 @@ interface AuditItem {
   enrichmentStatus: string;
 }
 
-/**
- * Diseño de llaves de la tabla de auditoría:
- *   PK  documentNumber            -> agrupa todo el historial de un documento
- *   SK  eventAt = "<ISO-8601>#<validationId>"
- *       - ISO 8601 en UTC se ordena alfabéticamente igual que en el tiempo,
- *         así que BETWEEN / begins_with sobre el SK sirven para rangos de fechas.
- *       - El sufijo #validationId evita que dos eventos del mismo documento
- *         en el mismo milisegundo se sobrescriban.
- */
+// PK documentNumber: todo el historial de un documento en una partición.
+// SK eventAt = "<ISO UTC>#<validationId>": el ISO ordena por fecha (sirve BETWEEN)
+// y el id evita que dos eventos en el mismo milisegundo se pisen.
 @Injectable()
 export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
   private readonly logger = new Logger(AuditDynamoAdapter.name);
@@ -64,9 +55,9 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
     });
   }
 
-  /** Crea la tabla al arrancar si no existe (solo tiene sentido en local). */
+  // crear la tabla solo tiene sentido en local; en AWS iría por Terraform
   async onModuleInit(): Promise<void> {
-    // DynamoDB Local tarda unos segundos en estar listo dentro de Docker.
+    // DynamoDB Local tarda unos segundos en levantar
     await withRetry(() => this.ensureTable(), {
       retries: 8,
       baseDelayMs: 500,
@@ -91,7 +82,6 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
           name: event.name,
           enrichmentStatus: event.enrichmentStatus,
         },
-        // Un registro de auditoría nunca se sobrescribe.
         ConditionExpression: 'attribute_not_exists(eventAt)',
       }),
     );
@@ -101,7 +91,7 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
     const input: QueryCommandInput = {
       TableName: this.tableName,
       ...this.keyCondition(query),
-      ScanIndexForward: false, // del más reciente al más antiguo
+      ScanIndexForward: false,
       Limit: query.limit,
       ExclusiveStartKey: query.cursor
         ? this.decodeCursor(query.cursor, query.documentNumber)
@@ -126,7 +116,6 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
     };
   }
 
-  /** Rango de fechas resuelto sobre la sort key: sin Scan ni filtros en memoria. */
   private keyCondition(
     query: AuditHistoryQuery,
   ): Pick<
@@ -156,7 +145,7 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
     };
   }
 
-  /** El cursor es la llave del último elemento, en base64url: opaco para el cliente. */
+  // cursor = LastEvaluatedKey en base64url
   private encodeCursor(key: Record<string, unknown>): string {
     return Buffer.from(JSON.stringify(key)).toString('base64url');
   }
@@ -169,7 +158,6 @@ export class AuditDynamoAdapter extends AuditPort implements OnModuleInit {
       const key = JSON.parse(
         Buffer.from(cursor, 'base64url').toString('utf8'),
       ) as Record<string, unknown>;
-      // Un cursor de otro documento (o manipulado) no se acepta.
       if (
         key.documentNumber !== documentNumber ||
         typeof key.eventAt !== 'string'

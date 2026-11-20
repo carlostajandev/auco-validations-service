@@ -25,11 +25,9 @@ import {
   ExchangeRateAdapter,
   ExchangeRateOptions,
 } from './infrastructure/enrichment/exchange-rate.adapter';
+import { CachedEnrichmentAdapter } from './infrastructure/enrichment/cached-enrichment.adapter';
 
-/**
- * Composition root del módulo: el ÚNICO lugar que sabe qué adaptador
- * implementa cada puerto. Cambiar Mongo por Postgres = cambiar una línea aquí.
- */
+// Aquí se decide qué adaptador implementa cada puerto.
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -42,12 +40,22 @@ import {
     GetValidationUseCase,
     ListAuditEventsUseCase,
 
-    // Puertos -> adaptadores
     { provide: ValidationRepositoryPort, useClass: ValidationMongoRepository },
     { provide: AuditPort, useClass: AuditDynamoAdapter },
-    { provide: EnrichmentPort, useClass: ExchangeRateAdapter },
+    ExchangeRateAdapter,
+    {
+      // la tasa cambia una vez al día, no hace falta pedirla en cada POST
+      provide: EnrichmentPort,
+      inject: [ExchangeRateAdapter, ConfigService],
+      useFactory: (http: ExchangeRateAdapter, config: ConfigService) =>
+        new CachedEnrichmentAdapter(http, {
+          ttlMs: config.getOrThrow<number>('ENRICHMENT_CACHE_TTL_MS'),
+          maxStaleMs: config.getOrThrow<number>(
+            'ENRICHMENT_CACHE_MAX_STALE_MS',
+          ),
+        }),
+    },
 
-    // Configuración de los adaptadores
     {
       provide: DYNAMO_CLIENT,
       inject: [ConfigService],

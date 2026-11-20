@@ -23,10 +23,6 @@ class ExchangeRateSnapshotResponse implements ExchangeRateSnapshot {
   fetchedAt!: string;
 }
 
-/**
- * Lo que expone la API. Se separa de la entidad a propósito:
- * cambiar el dominio o la base no rompe el contrato con los clientes.
- */
 export class ValidationResponse {
   @ApiProperty({ format: 'uuid' })
   id!: string;
